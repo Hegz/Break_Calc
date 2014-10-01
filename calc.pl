@@ -46,7 +46,7 @@ for my $card (@{$perl_scalar->{cards}}) {
 	}
 }
 
-my @Ice_Prime_Types = ('Barrier', 'Code Gate', 'Sentry');
+my @Ice_Prime_Types = ('Barrier', 'Code Gate', 'Sentry', 'Trap', 'Mythic');
 
 for my $Prime (@Ice_Prime_Types) {
 my @Prime_Ice;
@@ -54,14 +54,12 @@ my %ICE_Subtypes;
 for (keys %ICE) {
 	if (($ICE{$_}->{subtype} =~ m/$Prime/i) || (defined $ICE{$_}->{logicalsubtypes})){
 	# Check the primary subtypes and logical subtypes of this ice
-		my $is_Prime;
+ 		my $is_Prime; 
 		unless (defined $ICE{$_}->{logicalsubtypes}){
 			# This is the correct type
 			push @Prime_Ice, $ICE{$_};
-			delete $ICE{$_};
-
 			# Add the ice subtypes to the breaker search list
-			my @subtypes = split(/ - /, $ICE{$_}->{subtypes});
+			my @subtypes = (split(/ - /, $ICE{$_}->{subtype}));
 			for (@subtypes) {
 				$ICE_Subtypes{$_} = 1;
 			}
@@ -73,8 +71,8 @@ for (keys %ICE) {
 					$is_Prime = 1;
 				}
 			}
-			if ($ICE{$_}->{subtype} =~ m/trap/i || $ICE{$_}->{subtype} =~ m/mythic/i){
-				$is_Prime = 0;
+			if ($ICE{$_}->{subtype} =~ m/$Prime/i){
+				$is_Prime = 1;
 			}
 		}
 		if ($is_Prime) {
@@ -83,7 +81,6 @@ for (keys %ICE) {
 			for (@{$ICE{$_}->{logicalsubtypes}}) {
 				$ICE_Subtypes{$_} = 1;
 			}
-			delete $ICE{$_};
 		}
 	}
 }
@@ -99,34 +96,39 @@ for (@Removed_Types) {
 }
 
 # Search the Breakers for the correct subtypes
-my @Barrier_Breakers;
-for my $breaker (@Breakers) {
-	for my $subtype (keys %Barrier_Subtypes) {
-		if ($breaker->{text} =~ m/\W$subtype\W/i) {
-			print STDERR $breaker->{title} . "\n";
-			push @Barrier_Breakers, $breaker;
+my @Prime_Breakers;
+for my $breaker (keys %Breakers) {
+	for my $subtype (keys %ICE_Subtypes) {
+		if ($Breakers{$breaker}->{text} =~ m/\W$subtype\W/i) {
+			push @Prime_Breakers, $Breakers{$breaker};
 		}
 	}
-	if ($breaker->{subtype} =~ m/AI/){
-		push @Barrier_Breakers, $breaker;
+	if ($Breakers{$breaker}->{subtype} =~ m/AI/){
+		push @Prime_Breakers, $Breakers{$breaker};
 	}
 }
 
-@Barrier_Breakers = sort { $a->{faction} cmp $b->{faction} or
+@Prime_Breakers = sort { $a->{faction} cmp $b->{faction} or
 							  $a->{title}   cmp $b->{title}
-} @Barrier_Breakers;
+} @Prime_Breakers;
 
 my @Breaker_Titles;
-for (@Barrier_Breakers){ 
+for (@Prime_Breakers){ 
 	push @Breaker_Titles, $_->{title};
 }
+print "ICE Name";
+for (@Breaker_Titles){
+	print ",$_";
+}
+print "\n";
 
-@Barriers = sort { $a->{faction} cmp $b->{faction} or
+@Prime_Ice = sort { $a->{faction} cmp $b->{faction} or
 					  $a->{title}   cmp $b->{title}
-} @Barriers;
+} @Prime_Ice;
 
 
-for my $ice (@Barriers) {
+my %Average;
+for my $ice (@Prime_Ice) {
 	my @dataline;
 	push @dataline, $ice->{title};
 	my $strength = $ice->{strength};
@@ -142,7 +144,7 @@ for my $ice (@Barriers) {
 		}
 	}
 
-BREAKER:	for my $breaker (@Barrier_Breakers) {
+BREAKER:	for my $breaker (@Prime_Breakers) {
 		my $valid_Breaker = 0;
 		for my $type (@subtypes) {
 			if ($breaker->{text} =~ m/$type/i){
@@ -183,6 +185,8 @@ BREAKER:	for my $breaker (@Barrier_Breakers) {
 				}
 				$cost += $breaker->{breakcost}->{credits};
 			}
+			$Average{$breaker->{title}}->{total} += $cost;
+			$Average{$breaker->{title}}->{broken} += 1;
 			push @dataline, $cost;
 		}
 	}
@@ -192,4 +196,14 @@ BREAKER:	for my $breaker (@Barrier_Breakers) {
 	}
 	print "\n";
 }
+	print "Average";
+	for (@Breaker_Titles) {
+		if (defined $Average{$_}->{broken} && $Average{$_}->{broken} > 0){
+			printf ",%.1f", $Average{$_}->{total} / $Average{$_}->{broken};
+		}
+		else {
+			print ",";
+		}
+	}
+print "\n\n";
 }
