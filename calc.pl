@@ -116,7 +116,10 @@ my @Breaker_Titles;
 for (@Prime_Breakers){ 
 	push @Breaker_Titles, $_->{title};
 }
+
 print "ICE Name";
+unshift @Breaker_Titles, "Tax:Cost";
+unshift @Breaker_Titles, "Average";
 for (@Breaker_Titles){
 	print ",$_";
 }
@@ -129,6 +132,8 @@ print "\n";
 
 my %Average;
 for my $ice (@Prime_Ice) {
+	my $Ice_total_cost;
+	my $Ice_total_broken;
 	my @dataline;
 	push @dataline, $ice->{title};
 	my $strength = $ice->{strength};
@@ -153,7 +158,7 @@ BREAKER:	for my $breaker (@Prime_Breakers) {
 			}
 		}
 		$valid_Breaker = 1 if ($breaker->{subtype} =~ m/AI/);
-		push @dataline, '-' unless $valid_Breaker;
+		push @dataline, 'X' unless $valid_Breaker;
 		if ($valid_Breaker) {
 			my $breaker_str = $breaker->{strength};
 			my $broken_subs = 0;
@@ -172,7 +177,7 @@ BREAKER:	for my $breaker (@Prime_Breakers) {
 					$breaker_str = $strength;
 				}
 				else {
-					push @dataline, '-';
+					push @dataline, 'X';
 					next BREAKER;
 				}
 			}
@@ -185,12 +190,25 @@ BREAKER:	for my $breaker (@Prime_Breakers) {
 				}
 				$cost += $breaker->{breakcost}->{credits};
 			}
+			if ($breaker->{title} eq 'Wyrm') {
+				$cost += $strength;
+			}
 			$Average{$breaker->{title}}->{total} += $cost;
 			$Average{$breaker->{title}}->{broken} += 1;
 			push @dataline, $cost;
+			$Ice_total_cost += $cost;
+			$Ice_total_broken += 1;
 		}
 	}
 	print shift @dataline;
+	#print STDERR  "$ice->{title} (($Ice_total_cost / $Ice_total_broken) / $ice->{cost})\n";
+	if ($ice->{cost} > 0) {
+		unshift @dataline, sprintf "%.1f", ( ($Ice_total_cost / $Ice_total_broken) / $ice->{cost});
+	}
+	else {
+		unshift @dataline, "Inf!";
+	}
+	unshift @dataline, sprintf "%.1f", ($Ice_total_cost / $Ice_total_broken);
 	for (@dataline){
 		print ",$_"
 	}
